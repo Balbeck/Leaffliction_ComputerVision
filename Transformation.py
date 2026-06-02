@@ -9,57 +9,61 @@ from plantcv import plantcv as pcv
 
 
 def gaussian_blur(img):
-	return cv2.GaussianBlur(img, (5, 5), 0)
+	img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+	pcv.params.debug = None
+
+	blurred_rgb = pcv.gaussian_blur(img=img_rgb, ksize=(5, 5), sigma_x=0)
+
+	return cv2.cvtColor(blurred_rgb, cv2.COLOR_RGB2BGR)
 
 
 
 def mask(img):
-    # Convertir en LAB
-    lab = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # Canal A : vert (-) vs rouge (+)
-    a_channel = lab[:, :, 1]
+    pcv.params.debug = None
 
-    # Seuillage automatique Otsu sur le canal A
-    _, msk = cv2.threshold(
-        a_channel,
-        0, 255,
-        cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU
-    )
+    # Convertir en LAB et extraire le canal A (vert vs rouge)
+    a_channel = pcv.rgb2gray_lab(rgb_img=img_rgb, channel='a')
 
-    # Nettoyage du mask — erase "petits bruits"
-    kernel = np.ones((5, 5), np.uint8)
-    msk = cv2.morphologyEx(msk, cv2.MORPH_CLOSE, kernel)
-    msk = cv2.morphologyEx(msk, cv2.MORPH_OPEN, kernel)
+    # Seuillage Otsu — "dark" = inverse -> feuille en blanc, fond en noir
+    msk = pcv.threshold.otsu(gray_img=a_channel, object_type='dark')
+
+    # Nettoyage — CLOSE puis OPEN
+    kernel = pcv.get_kernel(size=(5, 5), shape="rectangle")
+    msk = pcv.closing(gray_img=msk, kernel=kernel)
+    msk = pcv.opening(gray_img=msk, kernel=kernel)
 
     return msk
 
 
 
 def roi_objects(img, msk):
-	result = img.copy()
+    img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    h, w = img.shape[:2]
 
-	# Trouver les contours dans le mask
-	contours, _ = cv2.findContours(
-		msk,
-		cv2.RETR_EXTERNAL,
-		cv2.CHAIN_APPROX_SIMPLE
-	)
+    pcv.params.debug = None
 
-	if not contours:
-		return result
+    # Def ROI qui couvre toute img
+    roi = pcv.roi.rectangle(img=img_rgb, x=0, y=0, h=h, w=w)
 
-	# Garder uniquement le plus grand contour = la feuille
-	largest = max(contours, key=cv2.contourArea)
+    # Filtrer le mask par le ROI -> garde le plus grand objet
+    filtered_mask = pcv.roi.filter(mask=msk, roi=roi, roi_type='largest')
 
-	# Dessiner le contour vert
-	cv2.drawContours(result, [largest], -1, (0, 255, 0), 2)
+    # draw result on img
+    result = img.copy()
+    contours, _ = cv2.findContours(
+        filtered_mask,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+    if contours:
+        largest = max(contours, key=cv2.contourArea)
+        cv2.drawContours(result, [largest], -1, (0, 255, 0), 2)
+        x, y, bw, bh = cv2.boundingRect(largest)
+        cv2.rectangle(result, (x, y), (x + bw, y + bh), (255, 0, 0), 2)
 
-	# Dessiner le bounding box bleu
-	x, y, w, h = cv2.boundingRect(largest)
-	cv2.rectangle(result, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
-	return result
+    return result
 
 
 
@@ -101,56 +105,42 @@ def analyze_object(img, msk):
 
 
 def pseudolandmarks(img, msk):
-
-	landmark_tolerance = 20
-
+	# PlantCV attend du RGB
+	img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 	result = img.copy()
-	contours, _ = cv2.findContours(
-		msk,
-		cv2.RETR_EXTERNAL,
-		cv2.CHAIN_APPROX_SIMPLE
+
+	pcv.params.debug = None
+	pcv.params.verbose = False
+	pcv.params.sample_label = "plant"
+
+	#Axe X : top, bottom, center_v
+	top, bottom, center_v = pcv.homology.x_axis_pseudolandmarks(
+		img=img_rgb,
+		mask=msk
 	)
-	if not contours:
-		return result
 
-	largest = max(contours, key=cv2.contourArea)
-	points  = largest[:, 0, :]  # reshape (N, 1, 2) -> (N, 2)
+	# Axe Y : left, right, center_h
+	left, right, center_h = pcv.homology.y_axis_pseudolandmarks(
+		img=img_rgb,
+		mask=msk
+	)
 
-	# Axe X : diviser la feuille en 3 tiers verticaux
-	x_min = points[:, 0].min()
-	x_max = points[:, 0].max()
-	x_third = (x_max - x_min) // 3
+	def draw_points(points, color):
+		if points is None:
+			return
+		for pt in points:
+			x, y = int(pt[0][0]), int(pt[0][1])
+			cv2.circle(result, (x, y), 5, color, -1)
 
-	for i in range(4):  # 4 lignes = 3 tiers
-		x = x_min + i * x_third
-		pts_near = points[np.abs(points[:, 0] - x) < landmark_tolerance]
-		if len(pts_near) == 0:
-			continue
-		top    = pts_near[pts_near[:, 1].argmin()]
-		bottom = pts_near[pts_near[:, 1].argmax()]
-		mid    = pts_near[np.abs(pts_near[:, 1] - pts_near[:, 1].mean()).argmin()]
+	# Axe X
+	draw_points(top,      (0, 0, 255))    # rouge
+	draw_points(bottom,   (0, 165, 255))  # orange
+	draw_points(center_v, (0, 255, 0))    # vert
 
-		cv2.circle(result, tuple(top),    5, (0, 0, 255),   -1)  # rouge
-		cv2.circle(result, tuple(bottom), 5, (0, 165, 255), -1)  # orange
-		cv2.circle(result, tuple(mid),    5, (0, 255, 0),   -1)  # vert
-
-	# Axe Y : diviser la feuille en 3 tiers horizontaux
-	y_min = points[:, 1].min()
-	y_max = points[:, 1].max()
-	y_third = (y_max - y_min) // 3
-
-	for i in range(4):
-		y = y_min + i * y_third
-		pts_near = points[np.abs(points[:, 1] - y) < landmark_tolerance]
-		if len(pts_near) == 0:
-			continue
-		left  = pts_near[pts_near[:, 0].argmin()]
-		right = pts_near[pts_near[:, 0].argmax()]
-		mid   = pts_near[np.abs(pts_near[:, 0] - pts_near[:, 0].mean()).argmin()]
-
-		cv2.circle(result, tuple(left),  5, (255, 0, 0),   -1)  # bleu
-		cv2.circle(result, tuple(right), 5, (255, 0, 255), -1)  # magenta
-		cv2.circle(result, tuple(mid),   5, (0, 255, 255), -1)  # cyan
+	# Axe Y
+	draw_points(left,     (255, 0, 0))    # bleu
+	draw_points(right,    (255, 0, 255))  # magenta
+	draw_points(center_h, (0, 255, 255))  # cyan
 
 	return result
 
@@ -210,8 +200,9 @@ def display_transformations(results):
 		else:
 			# Image BGR -> RGB pour matplotlib !
 			axes[i].imshow(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
-			axes[i].set_title(title)
-			axes[i].axis('on')
+
+		axes[i].set_title(title)
+		axes[i].axis('on')
 
 	plt.tight_layout()
 	plt.show()
@@ -369,22 +360,6 @@ def main():
 		print("\t- 'python3 Transformation.py -h'  -> for help Bro !")
 
 	return
-
-
-	# if len(sys.argv) != 2:
-	# 	print("usage: python3 Transformation.py <image_path>")
-	# 	return
-
-	# path = sys.argv[1]
-
-	# if not os.path.isfile(path):
-	# 	print(f"[ Error ]: '{path}' is not a valid file Bro !")
-	# 	return
-
-	# process_image(path)
-
-	# return
-
 
 
 if __name__ == "__main__":
