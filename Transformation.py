@@ -76,7 +76,7 @@ def analyze_object(img, msk):
 
 	pcv.outputs.clear()
 	pcv.params.sample_label = "plant"
-	pcv.params.debug = None  # pas de debug intempestif
+	pcv.params.debug = None
 	pcv.params.verbose = False
 
 	shape_image = pcv.analyze.size(
