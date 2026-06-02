@@ -163,7 +163,7 @@ def augment_image(img_path):
 
 	for name, transformed in transformations.items():
 		output_path = save_augmented(transformed, img_path, name)
-		print(f"  ✅ saved → {output_path}")
+		print(f"  ✅ saved: {output_path}")
 #
 
 
@@ -173,7 +173,7 @@ def augment_image(img_path):
 def main():
 
 	if len(sys.argv) != 2:
-		print("usage: python3 Augmentation.py <image_path or dirOfImages_path>")
+		print("usage: python3 Augmentation.py <image_path or directory_path>")
 		return
 
 	path = sys.argv[1]
@@ -185,7 +185,7 @@ def main():
 		augment_directory(path)
 	
 	else:
-		print(f"[ Error ]: '{path}' is not a valid file or directory !")
+		print(f"[ Error ]: '{path}' is not a valid file or directory Bro !")
 
 
 	return

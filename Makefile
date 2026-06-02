@@ -13,6 +13,7 @@ distribution:
 	@(python3 ./Distribution.py $(IMAGES_DIR))
 
 
+
 augmentation:
 	@(python3 ./Augmentation.py $(IMAGE_TEST))
 
@@ -31,8 +32,27 @@ augGrape:
 augAll: augApple augGrape 
 
 
+
 transformation:
 	@(python3 ./Transformation.py $(IMAGE_TEST))
+
+transDir:
+	@(python3 Transformation.py -src $(IMAGES_DIR)/Apple/apple_healthy/ -dst ./dst/ -mask)
+
+transApple:
+	python3 ./Transformation.py -src ./images/Apple/Apple_Black_rot -dst ./dst/Apple/
+	python3 ./Transformation.py -src ./images/Apple/Apple_healthy -dst ./dst/Apple/
+	python3 ./Transformation.py -src ./images/Apple/Apple_rust -dst ./dst/Apple/
+	python3 ./Transformation.py -src ./images/Apple/Apple_scab -dst ./dst/Apple/
+
+transGrape:
+	python3 ./Transformation.py -src ./images/Grape/Grape_Black_rot -dst ./dst/Grape/
+	python3 ./Transformation.py -src ./images/Grape/Grape_healthy -dst ./dst/Grape/
+	python3 ./Transformation.py -src ./images/Grape/Grape_Esca -dst ./dst/Grape/
+	python3 ./Transformation.py -src ./images/Grape/Grape_spot -dst ./dst/Grape/
+
+transAll: transApple transGrape
+
 
 
 train:
@@ -60,4 +80,4 @@ fclean: clean
 
 
 
-PHONY: init distribution augmentation augApple augGrape augAll transformation classification train predict freeze install clean fclean
+PHONY: init distribution augmentation augApple augGrape augAll transformation transDir transApple transGrape transAll classification train predict freeze install clean fclean

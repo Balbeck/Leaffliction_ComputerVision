@@ -2,4 +2,5 @@
 .Leafflication/
 __pycache__/
 images/
+dst/
 # db/

@@ -3,6 +3,7 @@ import sys
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import argparse
 
 
 
@@ -251,6 +252,100 @@ def process_image(img_path):
 
 	display_transformations(results)
 	color_histogram(img, msk)
+
+
+
+def process_directory(src, dst, use_mask):
+	valid_extensions = ('.jpg', '.jpeg', '.png', '.JPG', '.JPEG', '.PNG')
+
+	files = [
+		f for f in os.listdir(src)
+		if f.endswith(valid_extensions)
+	]
+
+	if not files:
+		print(f"[ Error ]: no images found in '{src}' !")
+		sys.exit(1)
+
+	os.makedirs(dst, exist_ok=True)
+
+	total = len(files)
+	print(f"\n🔬 Processing '{os.path.basename(src)}' — {total} images\n")
+
+	for i, filename in enumerate(files, 1):
+		img_path = os.path.join(src, filename)
+		img = cv2.imread(img_path)
+		if img is None:
+			print(f"  ⚠️  skipping '{filename}' — cannot read")
+			continue
+
+		blurred   = gaussian_blur(img)
+		msk       = mask(blurred)
+
+		results = {
+			"Original":        img,
+			"Gaussian_Blur":   blurred,
+			"Mask":            msk,
+			"ROI_Objects":     roi_objects(img, msk),
+			"Analyze_Object":  analyze_object(img, msk),
+			"Pseudolandmarks": pseudolandmarks(img, msk),
+		}
+
+		# Save Transformations !
+		base, ext = os.path.splitext(filename)
+		for name, transformed in results.items():
+			if use_mask and name == "Original":
+				continue
+			out_path = os.path.join(dst, f"{base}_{name}{ext}")
+			cv2.imwrite(out_path, transformed)
+
+		print(f"  [{i:>4}/{total}] ✅ {filename}")
+
+
+	print(f"\n✅ Done — results saved in '{dst}'\n")
+
+	return
+
+
+
+def parse_args():
+	parser = argparse.ArgumentParser(
+	prog="Transformation.py",
+	description="[ 🔬 Leaf image transformation pipeline ^^ ]",
+	formatter_class=argparse.RawTextHelpFormatter,
+	epilog="""
+		examples:
+		python3 Transformation.py image.JPG
+		python3 Transformation.py -src ./Apple/apple_healthy/ -dst ./dst/
+		python3 Transformation.py -src ./Apple/apple_healthy/ -dst ./dst/ -mask
+	"""
+	)
+
+	# - - -[ Mode - Simple Img ] - - -
+	parser.add_argument(
+		"image",
+		nargs="?", # optionnel
+		help="path to a single image"
+	)
+
+	# - - - [ Mode - Full Directory ] - - -
+	parser.add_argument(
+		"-src",
+		metavar="DIR",
+		help="source directory with images"
+	)
+	parser.add_argument(
+		"-dst",
+		metavar="DIR",
+		help="destination directory for results"
+	)
+	parser.add_argument(
+		"-mask",
+		action="store_true",  # flag bool
+		help="save only masked transformations"
+	)
+
+	return parser.parse_args()
 #
 
 
@@ -258,19 +353,47 @@ def process_image(img_path):
 
 
 def main():
-	if len(sys.argv) != 2:
-		print("usage: python3 Transformation.py <image_path>")
-		return
 
-	path = sys.argv[1]
+	args = parse_args()
 
-	if not os.path.isfile(path):
-		print(f"[ Error ]: '{path}' is not a valid file Bro !")
-		return
+	# [ Simple Img ]
+	if args.image:
+		if not os.path.isfile(args.image):
+			print(f"[ Error ]: '{args.image}' is not a valid file !")
+			return
 
-	process_image(path)
+		process_image(args.image)
+
+
+	# [ Full Directory ]
+	elif args.src and args.dst:
+		if not os.path.isdir(args.src):
+			print(f"[ Error ]: '{args.src}' is not a valid directory !")
+			return
+
+		process_directory(args.src, args.dst, args.mask)
+
+
+	else:
+		print("[ Error ]: provide an image path or use -src and -dst")
+		print("\t- 'python3 Transformation.py -h'  -> for help Bro !")
 
 	return
+
+
+	# if len(sys.argv) != 2:
+	# 	print("usage: python3 Transformation.py <image_path>")
+	# 	return
+
+	# path = sys.argv[1]
+
+	# if not os.path.isfile(path):
+	# 	print(f"[ Error ]: '{path}' is not a valid file Bro !")
+	# 	return
+
+	# process_image(path)
+
+	# return
 
 
 
