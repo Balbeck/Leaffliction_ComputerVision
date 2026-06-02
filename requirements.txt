@@ -3,3 +3,7 @@ matplotlib
 numpy
 opencv-python #Lib ComputerVision pour effectuer transformation du DataSet
 argparse
+
+# [Deps for planCv]
+scipy==1.13.1
+plantcv

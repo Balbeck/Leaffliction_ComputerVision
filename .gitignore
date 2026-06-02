@@ -1,5 +1,5 @@
 .DS_Store
-.Leafflication/
+.LeafflictionVenv/
 __pycache__/
 images/
 dst/
