@@ -1,6 +1,6 @@
 IMAGES_DIR="./images"
+IMAGE_TEST="./images/Apple/Apple_Black_rot/image (1).JPG"
 DB="./db"
-IMAGE_TEST="./image.jpg"
 
 
 
@@ -12,11 +12,28 @@ init:
 distribution:
 	@(python3 ./Distribution.py $(IMAGES_DIR))
 
+
 augmentation:
 	@(python3 ./Augmentation.py $(IMAGE_TEST))
 
+augApple:
+	python3 ./Augmentation.py ./images/Apple/Apple_Black_rot
+	python3 ./Augmentation.py ./images/Apple/Apple_healthy
+	python3 ./Augmentation.py ./images/Apple/Apple_rust
+	python3 ./Augmentation.py ./images/Apple/Apple_scab
+
+augGrape:
+	python3 ./Augmentation.py ./images/Grape/Grape_Black_rot
+	python3 ./Augmentation.py ./images/Grape/Grape_healthy
+	python3 ./Augmentation.py ./images/Grape/Grape_Esca
+	python3 ./Augmentation.py ./images/Grape/Grape_spot
+
+augAll: augApple augGrape 
+
+
 transformation:
 	@(python3 ./Transformation.py $(IMAGE_TEST))
+
 
 train:
 	@(rm -rf $(DB)_augmented $(DB)_transformed)
@@ -43,4 +60,4 @@ fclean: clean
 
 
 
-PHONY: init distribution augmentation transformation classification train predict freeze install clean fclean
+PHONY: init distribution augmentation augApple augGrape augAll transformation classification train predict freeze install clean fclean

@@ -1,2 +1,4 @@
 flake8
 matplotlib
+numpy
+opencv-python #Lib ComputerVision pour effectuer transformation du DataSet
