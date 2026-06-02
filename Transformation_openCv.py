@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
-from plantcv import plantcv as pcv
 
 
 
@@ -64,39 +63,50 @@ def roi_objects(img, msk):
 
 
 def analyze_object(img, msk):
-	# PlantCV attend du RGB
-	img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+	result = img.copy()
 
-	# Mask en 32-bit pour PlantCV
-	labeled_mask = msk.astype(np.int32)
+	contours, _ = cv2.findContours(
+		msk,
+		cv2.RETR_EXTERNAL,
+		cv2.CHAIN_APPROX_SIMPLE
+	)
+	if not contours:
+		return result
 
-	pcv.outputs.clear()
-	pcv.params.sample_label = "plant"
-	pcv.params.debug = None  # pas de debug intempestif
-	pcv.params.verbose = False
+	largest = max(contours, key=cv2.contourArea)
 
-	shape_image = pcv.analyze.size(
-		img=img_rgb,
-		labeled_mask=labeled_mask,
-		n_labels=1
+	# Mesures morphologiques
+	area        = cv2.contourArea(largest)
+	perimeter   = cv2.arcLength(largest, closed=True)
+	x, y, w, h  = cv2.boundingRect(largest)
+	solidity    = area / (w * h) if (w * h) > 0 else 0
+
+	# Dessine contour Magenta
+	cv2.drawContours(result, [largest], -1, (255, 0, 255), 2)
+
+	# Axe principal via ellipse
+	if len(largest) >= 5:
+		ellipse = cv2.fitEllipse(largest)
+		cv2.ellipse(result, ellipse, (255, 0, 255), 2)
+
+	# Affiche mesures sur image
+	metrics = [
+		f"Area      : {int(area)} px",
+		f"Perimeter : {int(perimeter)} px",
+		f"Width     : {w} px",
+		f"Height    : {h} px",
+		f"Solidity  : {solidity:.2f}",
+	]
+	for i, text in enumerate(metrics):
+		cv2.putText(
+			result,
+			text,
+			(10, 20 + i * 20),
+			cv2.FONT_HERSHEY_SIMPLEX,
+			0.5, (255, 0, 255), 1
 	)
 
-	obs = pcv.outputs.observations.get('plant_1', {})
-	metrics = {
-		'area':         obs.get('area',         {}).get('value', 'N/A'),
-		'perimeter':    obs.get('perimeter',     {}).get('value', 'N/A'),
-		'width':        obs.get('width',         {}).get('value', 'N/A'),
-		'height':       obs.get('height',        {}).get('value', 'N/A'),
-		'solidity':     obs.get('solidity',      {}).get('value', 'N/A'),
-		'longest_path': obs.get('longest_path',  {}).get('value', 'N/A'),
-	}
-
-	print(f"\n📐 Shape Analysis :")
-	for k, v in metrics.items():
-		print(f"   {k:15s}: {v}")
-
-	# Return img annotation BGR pour matplotlib/OpenCV
-	return cv2.cvtColor(shape_image, cv2.COLOR_RGB2BGR)
+	return result
 
 
 

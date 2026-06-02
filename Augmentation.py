@@ -2,6 +2,7 @@ import os
 import sys
 import numpy as np
 import cv2 # Lib ComputerVision OpenCv
+import matplotlib.pyplot as plt
 
 
 AUGMENT_TAGS = ["_Flip", "_Rotate", "_Shear", "_Crop", "_Contrast", "_Blur"]
@@ -139,7 +140,7 @@ def augment_directory(dir_path):
 
 
 
-def augment_image(img_path):
+def augment_image(img_path, display=False):
 
 	img = cv2.imread(img_path)
 	if img is None:
@@ -150,6 +151,7 @@ def augment_image(img_path):
 
 	# We only select 6 Transformation Methods
 	transformations = {
+		"Original":   img,
 		"Flip":       flip(img),
 		"Rotate":     rotate(img),
 		# "Skew":       skew(img),
@@ -161,9 +163,33 @@ def augment_image(img_path):
 		# "Illumniation": illumination(img),
 	}
 
-	for name, transformed in transformations.items():
-		output_path = save_augmented(transformed, img_path, name)
-		print(f"  ✅ saved: {output_path}")
+	if display:
+		# Afficher toutes les transformations dans une grille
+		n = len(transformations)
+		cols = 4
+		rows = (n + cols - 1) // cols  # arrondi supérieur
+		fig, axes = plt.subplots(rows, cols, figsize=(16, rows * 4))
+		axes = axes.flatten()
+
+		for i, (name, transformed) in enumerate(transformations.items()):
+			axes[i].imshow(cv2.cvtColor(transformed, cv2.COLOR_BGR2RGB))
+			axes[i].set_title(name)
+			axes[i].axis('off')
+
+		# Cacher les axes vides si nombre impair
+		for j in range(i + 1, len(axes)):
+			axes[j].axis('off')
+
+		fig.suptitle(os.path.basename(img_path), fontsize=12)
+		plt.tight_layout()
+		plt.show()
+
+	else:
+		for name, transformed in transformations.items():
+			if name == "Original":    # ← skip l'original en mode save
+				continue
+			output_path = save_augmented(transformed, img_path, name)
+			print(f"  ✅ saved: {output_path}")
 #
 
 
@@ -179,7 +205,7 @@ def main():
 	path = sys.argv[1]
 	
 	if os.path.isfile(path):
-		augment_image(path)
+		augment_image(path, display=True)
 	
 	elif os.path.isdir(path):
 		augment_directory(path)

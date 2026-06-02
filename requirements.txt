@@ -1,9 +1,11 @@
 flake8
 matplotlib
 numpy
-opencv-python #Lib ComputerVision pour effectuer transformation du DataSet
 argparse
 
-# [Deps for planCv]
+# [OpenComputerVision] Lib ComputerVision pour effectuer transformation du DataSet
+opencv-python
+
+# [Deps for planCv] Lib trained for Plants Analysis
 scipy==1.13.1
 plantcv
