@@ -1,0 +1,5 @@
+.DS_Store
+.Leafflication/
+__pycache__/
+# images/
+# db/

@@ -8,9 +8,12 @@ if [ ! -d "$VENV_DIR" ]; then
 	python3 -m venv "$VENV_DIR"
 fi
 
-echo "📦 Installation des dependances..."
+echo "🏗️ Installation des dependances..."
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip --no-cache-dir
 "$VENV_DIR/bin/pip" install --quiet -r requirements.txt --no-cache-dir
 
 source "$VENV_DIR/bin/activate"
-echo "🚀 Ready to Go..."
+echo "📦 Dependances installees, ✅ Init Done! ..."
+echo "🚀 'source .LeafflictionVenv/bin/activate'   pour lancer l'env virtuel"
+echo "📉 'deactivate'   to Stop."
+echo "✨ Enjoy Bro! ..."
